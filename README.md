@@ -1,83 +1,32 @@
-Django Smart Selects
-====================
+# Django Smart Selects
+
+[![Jazzband](https://jazzband.co/static/img/badge.svg)](https://jazzband.co/) [![Build Status](https://travis-ci.org/jazzband/django-smart-selects.svg?branch=master)](https://travis-ci.org/jazzband/django-smart-selects) [![Coverage Status](https://coveralls.io/repos/github/jazzband/django-smart-selects/badge.svg?branch=master)](https://coveralls.io/github/jazzband/django-smart-selects?branch=master)
 
 
-Chained Selects
----------------
+This package allows you to quickly filter or group "chained" models by adding a custom foreign key or many to many field to your models. This will use an AJAX query to load only the applicable chained objects.
 
-If you have the following model:
+**Warning**: The AJAX endpoint enforces no permissions by default.  This means that **any model with a chained field will be world readable**. If you would like more control over this permission, the [`django-autocomplete-light`](https://github.com/yourlabs/django-autocomplete-light) package is a great, high-quality package that enables the same functionality with permission checks.
 
-	class Location(models.Model)
-		continent = models.ForeignKey(Continent)
-		country = models.ForeignKey(Country)
-		area = models.ForeignKey(Area)
-		city = models.CharField(max_length=50)
-		street = models.CharField(max_length=100)
-		
-And you want that if you select a continent only the countries are available that are located on this continent and the same for areas
-you can do the following:
+## Documentation
 
-    from smart_selects.db_fields import ChainedForeignKey 
+For more information on installation and configuration see the documentation at:
 
-	class Location(models.Model)
-		continent = models.ForeignKey(Continent)
-		country = ChainedForeignKey(
-			Country, 
-			chained_field="continent",
-			chained_model_field="continent", 
-			show_all=False, 
-			auto_choose=True
-		)
-		area = ChainedForeignKey(Area, chained_field="country", chained_model_field="country")
-		city = models.CharField(max_length=50)
-		street = models.CharField(max_length=100)
-	
-This example asumes that the Country Model has a continent = ForeignKey(Continent) field
-and that the Area model has country = ForeignKey(Country) field.
+https://django-smart-selects.readthedocs.io/
 
-- The chained field is the field on the same model the field should be chained too.
-- The chained model field is the field of the chained model that corresponds to the model linked too by the chained field.
-- show_all indicates if only the filtered results should be shown or if you also want to display the other results further down.
-- auto_choose indicates that if there is only one option if it should be autoselected.
+## Reporting issues / sending PRs
 
-Grouped Selects
----------------
+You can try the test_app example using:
 
-If you have the following model:
+```shell
+python manage.py migrate
+python manage.py loaddata test_app/fixtures/*
+python manage.py runserver
+```
 
-	class Location(models.Model)
-		continent = models.ForeignKey(Continent)
-		country = models.ForeignKey(Country)
-		
-And you want that all countries are grouped by the Continent and that <opt> Groups are used in the select change to the following:
-
-    from smart_selects.db_fields import GroupedForeignKey
-	
-	class Location(models.Model)
-		continent = models.ForeignKey(Continent)
-		country = GroupedForeignKey(Country, "continent")
-		
-This example assumes that the Country Model has a foreignKey to Continent named "continent"
-finished.
-	
+Then login with admin/admin at http://127.0.0.1:8000/admin/
 
 
-Installation
-------------
+## TODO
 
-1. Add "smart\_selects" to your INSTALLED\_APPS
-2. Bind the `smart_selects` urls.py into your main urls.py with something like: `url(r'^chaining/', include('smart_selects.urls')),`
-   This is needed for the chained-selects.
-3. Profit
-
-
-Settings
---------
-
-`USE_DJANGO_JQUERY`
-:   By default, `smart_selects` will use the bundled jQuery from Django 1.2's
-    admin area. Set `USE_DJANGO_JQUERY = False` to disable this behaviour.
-
-`JQUERY_URL`
-:   By default, jQuery will be loaded from Google's CDN. If you would prefer to
-    use a different version put the full URL here.
+* Add permission checks to enable users to restrict who can use the chained fields.
+* Add a `ChainedCheckboxSelectMultiple` widget and adjust `chainedm2m.js` and `chainedfk.js` to build checkboxes in that case

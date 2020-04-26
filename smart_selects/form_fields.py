@@ -1,24 +1,27 @@
-from django.db.models import get_model
-from django.forms.models import ModelChoiceField
+from django.apps import apps
+from django.forms.models import ModelChoiceField, ModelMultipleChoiceField
 from django.forms import ChoiceField
+from smart_selects.widgets import ChainedSelect, ChainedSelectMultiple
+from django.utils.encoding import force_text
 
-from smart_selects.widgets import ChainedSelect
+get_model = apps.get_model
 
 
 class ChainedModelChoiceField(ModelChoiceField):
 
-    def __init__(self, app_name, model_name,
-                 chain_field, model_field, show_all,
-                 auto_choose, manager=None,
-                 initial=None, view_name=None, *args, **kwargs):
+    def __init__(self, to_app_name, to_model_name, chained_field, chained_model_field,
+                 foreign_key_app_name, foreign_key_model_name, foreign_key_field_name,
+                 show_all, auto_choose, sort=True, manager=None, initial=None, view_name=None,
+                 *args, **kwargs):
+
         defaults = {
-            'widget': ChainedSelect(app_name, model_name, chain_field,
-                                    model_field, show_all, auto_choose,
-                                    manager, view_name),
+            'widget': ChainedSelect(to_app_name, to_model_name, chained_field, chained_model_field,
+                                    foreign_key_app_name, foreign_key_model_name, foreign_key_field_name,
+                                    show_all, auto_choose, sort, manager, view_name),
         }
         defaults.update(kwargs)
-        if not 'queryset' in kwargs:
-            queryset = get_model(app_name, model_name).objects.all()
+        if 'queryset' not in kwargs:
+            queryset = get_model(to_app_name, to_model_name).objects.all()
             super(ChainedModelChoiceField, self).__init__(queryset=queryset, initial=initial, *args, **defaults)
         else:
             super(ChainedModelChoiceField, self).__init__(initial=initial, *args, **defaults)
@@ -28,6 +31,25 @@ class ChainedModelChoiceField(ModelChoiceField):
         choices = super(ChainedModelChoiceField, self)._get_choices()
         return choices
     choices = property(_get_choices, ChoiceField._set_choices)
+
+
+class ChainedManyToManyField(ModelMultipleChoiceField):
+
+    def __init__(self, to_app_name, to_model_name, chain_field, chained_model_field,
+                 foreign_key_app_name, foreign_key_model_name, foreign_key_field_name,
+                 auto_choose, horizontal, verbose_name='', manager=None, initial=None, *args, **kwargs):
+
+        defaults = {
+            'widget': ChainedSelectMultiple(to_app_name, to_model_name, chain_field, chained_model_field,
+                                            foreign_key_app_name, foreign_key_model_name, foreign_key_field_name,
+                                            auto_choose, horizontal, verbose_name, manager),
+        }
+        defaults.update(kwargs)
+        if 'queryset' not in kwargs:
+            queryset = get_model(to_app_name, to_model_name).objects.all()
+            super(ChainedManyToManyField, self).__init__(queryset=queryset, initial=initial, *args, **defaults)
+        else:
+            super(ChainedManyToManyField, self).__init__(initial=initial, *args, **defaults)
 
 
 class GroupedModelSelect(ModelChoiceField):
@@ -53,12 +75,13 @@ class GroupedModelSelect(ModelChoiceField):
         for item in self.queryset:
             order_field = getattr(item, self.order_field)
             group_index = order_field.pk
-            if not group_index in group_indexes:
+            if group_index not in group_indexes:
                 group_indexes[group_index] = i
-                choices.append([unicode(order_field), []])
+                choices.append([force_text(order_field), []])
                 i += 1
             choice_index = group_indexes[group_index]
             choices[choice_index][1].append(self.make_choice(item))
+
         return choices
 
     def make_choice(self, obj):
